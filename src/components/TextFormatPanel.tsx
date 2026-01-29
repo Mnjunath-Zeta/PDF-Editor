@@ -36,6 +36,13 @@ export const TextFormatPanel: React.FC = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Collapse panel on new selection or mode switch (mobile only)
+    useEffect(() => {
+        if (isMobile) {
+            setIsExpanded(false);
+        }
+    }, [selectedAnnotationId, isMobile]);
+
     // Popular fonts that work well in PDFs
     const popularFonts = [
         'Helvetica',
