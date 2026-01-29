@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Type, Palette, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from 'lucide-react';
+import { Type, Palette, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, SlidersHorizontal, X } from 'lucide-react';
 import { useEditorStore } from '../store/useEditorStore';
 
 export const TextFormatPanel: React.FC = () => {
@@ -24,9 +24,14 @@ export const TextFormatPanel: React.FC = () => {
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const panelRef = React.useRef<HTMLDivElement>(null);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [isExpanded, setIsExpanded] = useState(!isMobile);
 
     useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        const handleResize = () => {
+            const mobile = window.innerWidth < 768;
+            setIsMobile(mobile);
+            if (!mobile) setIsExpanded(true);
+        };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
@@ -106,6 +111,32 @@ export const TextFormatPanel: React.FC = () => {
 
     if (!selectedAnnotationId || !selectedAnnotation || selectedAnnotation.type !== 'text') {
         return null;
+    }
+
+    if (isMobile && !isExpanded) {
+        return (
+            <button
+                onClick={() => setIsExpanded(true)}
+                style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    right: '20px',
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '50%',
+                    background: 'white',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                    zIndex: 1000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: 'none',
+                    color: '#3b82f6'
+                }}
+            >
+                <SlidersHorizontal size={24} />
+            </button>
+        );
     }
 
     const handleFontSizeChange = (newSize: number) => {
@@ -188,9 +219,16 @@ export const TextFormatPanel: React.FC = () => {
             }}
         >
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
-                <Type size={16} color="var(--color-primary)" />
-                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Text Format</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Type size={16} color="var(--color-primary)" />
+                    <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Text Format</span>
+                </div>
+                {isMobile && (
+                    <button onClick={() => setIsExpanded(false)} style={{ background: 'none', border: 'none', padding: '4px' }}>
+                        <X size={20} color="#64748b" />
+                    </button>
+                )}
             </div>
 
             {/* Font Size */}

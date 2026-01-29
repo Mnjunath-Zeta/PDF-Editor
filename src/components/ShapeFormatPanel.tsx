@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Maximize } from 'lucide-react';
+import { Maximize, SlidersHorizontal, X } from 'lucide-react';
 import { useEditorStore } from '../store/useEditorStore';
 
 export const ShapeFormatPanel: React.FC = () => {
@@ -36,9 +36,14 @@ export const ShapeFormatPanel: React.FC = () => {
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const panelRef = React.useRef<HTMLDivElement>(null);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [isExpanded, setIsExpanded] = useState(!isMobile);
 
     useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        const handleResize = () => {
+            const mobile = window.innerWidth < 768;
+            setIsMobile(mobile);
+            if (!mobile) setIsExpanded(true);
+        };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
@@ -94,6 +99,32 @@ export const ShapeFormatPanel: React.FC = () => {
 
     if (!shouldShow) return null;
 
+    if (isMobile && !isExpanded) {
+        return (
+            <button
+                onClick={() => setIsExpanded(true)}
+                style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    right: '20px',
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '50%',
+                    background: 'white',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                    zIndex: 1000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: 'none',
+                    color: '#3b82f6'
+                }}
+            >
+                <SlidersHorizontal size={24} />
+            </button>
+        );
+    }
+
     const colors = [
         '#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff',
         '#ffff00', '#ff00ff', '#00ffff', '#f97316', '#84cc16'
@@ -126,11 +157,18 @@ export const ShapeFormatPanel: React.FC = () => {
                 userSelect: 'none'
             }}
         >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
-                <Maximize size={16} color="var(--color-primary)" />
-                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>
-                    {isShapeSelected ? 'Edit Shape' : 'Default Shape Style'}
-                </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Maximize size={16} color="var(--color-primary)" />
+                    <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                        {isShapeSelected ? 'Edit Shape' : 'Default Shape Style'}
+                    </span>
+                </div>
+                {isMobile && (
+                    <button onClick={() => setIsExpanded(false)} style={{ background: 'none', border: 'none', padding: '4px' }}>
+                        <X size={20} color="#64748b" />
+                    </button>
+                )}
             </div>
 
             {/* Stroke Color */}
