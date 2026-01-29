@@ -1,6 +1,8 @@
 import { PDFUploader } from './components/PDFUploader';
 import { Toolbar } from './components/Toolbar';
 import { PDFViewer } from './components/PDFViewer';
+import { Toast } from './components/Toast';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { useEditorStore } from './store/useEditorStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
@@ -61,12 +63,29 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 import { X, Edit3 } from 'lucide-react';
 
 function App() {
-  const { file, setFile } = useEditorStore();
+  const { file, setFile, toast, hideToast, confirmDialog, hideConfirm } = useEditorStore();
   useKeyboardShortcuts();
 
   return (
     <ErrorBoundary>
       <div className="app-container" style={{ background: '#f1f5f9', minHeight: '100vh' }}>
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={hideToast}
+          />
+        )}
+        {confirmDialog && (
+          <ConfirmDialog
+            message={confirmDialog.message}
+            onConfirm={() => {
+              confirmDialog.onConfirm();
+              hideConfirm();
+            }}
+            onCancel={hideConfirm}
+          />
+        )}
         {!file ? (
           <PDFUploader onUpload={setFile} />
         ) : (

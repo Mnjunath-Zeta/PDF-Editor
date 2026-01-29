@@ -19,6 +19,9 @@ export interface Annotation {
     strokeStyle?: 'solid' | 'dashed' | 'dotted';
     fontSize?: number;
     fontFamily?: string; // font family
+    fontWeight?: 'normal' | 'bold';
+    fontStyle?: 'normal' | 'italic';
+    textDecoration?: 'none' | 'underline';
     points?: { x: number; y: number }[]; // for draw
     image?: string; // dataURL for image
     textAlign?: 'left' | 'center' | 'right'; // text alignment
@@ -36,6 +39,10 @@ interface EditorState {
     selectedAnnotationId: string | null;
     history: Annotation[][];
     historyIndex: number;
+    defaultShapeColor: string;
+    defaultShapeFillColor: string;
+    defaultShapeStrokeWidth: number;
+    defaultShapeStrokeStyle: 'solid' | 'dashed' | 'dotted';
 
     setFile: (file: File) => void;
     setNumPages: (num: number) => void;
@@ -51,6 +58,20 @@ interface EditorState {
     selectAnnotation: (id: string | null) => void;
     undo: () => void;
     redo: () => void;
+    setDefaultShapeColor: (color: string) => void;
+    setDefaultShapeFillColor: (color: string) => void;
+    setDefaultShapeStrokeWidth: (width: number) => void;
+    setDefaultShapeStrokeStyle: (style: 'solid' | 'dashed' | 'dotted') => void;
+
+    // Toast notifications
+    toast: { message: string; type: 'success' | 'error' | 'info' } | null;
+    showToast: (message: string, type: 'success' | 'error' | 'info') => void;
+    hideToast: () => void;
+
+    // Confirm dialog
+    confirmDialog: { message: string; onConfirm: () => void } | null;
+    showConfirm: (message: string, onConfirm: () => void) => void;
+    hideConfirm: () => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -63,6 +84,12 @@ export const useEditorStore = create<EditorState>((set) => ({
     selectedAnnotationId: null,
     history: [[]],
     historyIndex: 0,
+    defaultShapeColor: '#000000',
+    defaultShapeFillColor: 'transparent',
+    defaultShapeStrokeWidth: 2,
+    defaultShapeStrokeStyle: 'solid',
+    toast: null,
+    confirmDialog: null,
 
     setFile: (file) => set({
         file,
@@ -188,4 +215,15 @@ export const useEditorStore = create<EditorState>((set) => ({
         }
         return state;
     }),
+
+    setDefaultShapeColor: (defaultShapeColor) => set({ defaultShapeColor }),
+    setDefaultShapeFillColor: (defaultShapeFillColor) => set({ defaultShapeFillColor }),
+    setDefaultShapeStrokeWidth: (defaultShapeStrokeWidth) => set({ defaultShapeStrokeWidth }),
+    setDefaultShapeStrokeStyle: (defaultShapeStrokeStyle) => set({ defaultShapeStrokeStyle }),
+
+    showToast: (message, type) => set({ toast: { message, type } }),
+    hideToast: () => set({ toast: null }),
+
+    showConfirm: (message, onConfirm) => set({ confirmDialog: { message, onConfirm } }),
+    hideConfirm: () => set({ confirmDialog: null }),
 }));

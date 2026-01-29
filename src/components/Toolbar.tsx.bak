@@ -84,7 +84,7 @@ export const Toolbar: React.FC = () => {
                     await writable.close();
                     // Delay alert to ensure it shows after file picker closes
                     setTimeout(() => {
-                        showToast('PDF saved successfully!\n\nYour file has been saved to the location you selected.', 'success');
+                        showToast(`PDF saved successfully!\n\nFilename: ${filename}`, 'success');
                     }, 100);
                     return;
                 } catch (err: any) {
@@ -115,7 +115,7 @@ export const Toolbar: React.FC = () => {
             setTimeout(() => {
                 document.body.removeChild(link);
                 // Show alert after download starts
-                showToast('PDF download started!\n\nCheck your Downloads folder.', 'success');
+                showToast(`PDF download started!\n\nFilename: ${filename}\nCheck your Downloads folder.`, 'success');
             }, 200);
         } catch (error) {
             console.error('Failed to save PDF', error);

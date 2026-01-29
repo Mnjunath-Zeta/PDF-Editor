@@ -17,7 +17,7 @@ export const savePDF = async (file: File, annotations: Annotation[]): Promise<Ui
     const arrayBuffer = await file.arrayBuffer();
     const pdfDoc = await PDFDocument.load(arrayBuffer);
     const pages = pdfDoc.getPages();
-    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
 
     for (const annotation of annotations) {
         const pageIndex = annotation.page - 1;
@@ -35,13 +35,51 @@ export const savePDF = async (file: File, annotations: Annotation[]): Promise<Ui
         if (annotation.type === 'text' && annotation.content) {
             const fontSize = annotation.fontSize || 16;
             const textColor = hexToRgb(annotation.color || '#000000') || rgb(0, 0, 0);
+
+            // Resolve Font
+            let fontToEmbed = StandardFonts.Helvetica;
+            const family = annotation.fontFamily || 'Helvetica';
+            const isBold = annotation.fontWeight === 'bold';
+            const isItalic = annotation.fontStyle === 'italic';
+
+            if (family.includes('Times')) {
+                if (isBold && isItalic) fontToEmbed = StandardFonts.TimesRomanBoldItalic;
+                else if (isBold) fontToEmbed = StandardFonts.TimesRomanBold;
+                else if (isItalic) fontToEmbed = StandardFonts.TimesRomanItalic;
+                else fontToEmbed = StandardFonts.TimesRoman;
+            } else if (family.includes('Courier')) {
+                if (isBold && isItalic) fontToEmbed = StandardFonts.CourierBoldOblique;
+                else if (isBold) fontToEmbed = StandardFonts.CourierBold;
+                else if (isItalic) fontToEmbed = StandardFonts.CourierOblique;
+                else fontToEmbed = StandardFonts.Courier;
+            } else {
+                // Default to Helvetica for Arial and others
+                if (isBold && isItalic) fontToEmbed = StandardFonts.HelveticaBoldOblique;
+                else if (isBold) fontToEmbed = StandardFonts.HelveticaBold;
+                else if (isItalic) fontToEmbed = StandardFonts.HelveticaOblique;
+                else fontToEmbed = StandardFonts.Helvetica;
+            }
+
+            const font = await pdfDoc.embedFont(fontToEmbed);
+
             page.drawText(annotation.content, {
                 x: x,
                 y: y - fontSize,
                 size: fontSize,
-                font: helveticaFont,
+                font: font,
                 color: textColor,
             });
+
+            // Handle Underline
+            if (annotation.textDecoration === 'underline') {
+                const textWidth = font.widthOfTextAtSize(annotation.content, fontSize);
+                page.drawLine({
+                    start: { x: x, y: y - fontSize - 2 },
+                    end: { x: x + textWidth, y: y - fontSize - 2 },
+                    color: textColor,
+                    thickness: fontSize / 15,
+                });
+            }
         } else if (annotation.type === 'rect') {
             const width = annotation.width || 0;
             const height = annotation.height || 0;
@@ -97,6 +135,39 @@ export const savePDF = async (file: File, annotations: Annotation[]): Promise<Ui
                     color: strokeColor,
                     thickness: strokeWidth,
                 });
+            }
+        } else if (annotation.type === 'draw' && annotation.points && annotation.points.length > 1) {
+            for (let i = 0; i < annotation.points.length - 1; i++) {
+                const p1 = annotation.points[i];
+                const p2 = annotation.points[i + 1];
+                page.drawLine({
+                    start: { x: p1.x, y: pageHeight - p1.y },
+                    end: { x: p2.x, y: pageHeight - p2.y },
+                    color: strokeColor,
+                    thickness: strokeWidth,
+                });
+            }
+        } else if (annotation.type === 'image' && annotation.image) {
+            try {
+                let image;
+                if (annotation.image.startsWith('data:image/png')) {
+                    image = await pdfDoc.embedPng(annotation.image);
+                } else if (annotation.image.startsWith('data:image/jpeg') || annotation.image.startsWith('data:image/jpg')) {
+                    image = await pdfDoc.embedJpg(annotation.image);
+                }
+
+                if (image) {
+                    const width = annotation.width || 0;
+                    const height = annotation.height || 0;
+                    page.drawImage(image, {
+                        x: x,
+                        y: y - height,
+                        width: width,
+                        height: height,
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to embed image', e);
             }
         }
     }

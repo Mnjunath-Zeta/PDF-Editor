@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Type, Palette, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { Type, Palette, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from 'lucide-react';
 import { useEditorStore } from '../store/useEditorStore';
 
 export const TextFormatPanel: React.FC = () => {
@@ -13,6 +13,9 @@ export const TextFormatPanel: React.FC = () => {
     const [backgroundColor, setBackgroundColor] = useState('transparent');
     const [opacity, setOpacity] = useState(1);
     const [fontFamily, setFontFamily] = useState('Helvetica');
+    const [fontWeight, setFontWeight] = useState<'normal' | 'bold'>('normal');
+    const [fontStyle, setFontStyle] = useState<'normal' | 'italic'>('normal');
+    const [textDecoration, setTextDecoration] = useState<'none' | 'underline'>('none');
     const [showFontMenu, setShowFontMenu] = useState(false);
 
     // Dragging state
@@ -41,7 +44,11 @@ export const TextFormatPanel: React.FC = () => {
             setTextAlign(selectedAnnotation.textAlign || 'left');
             setBackgroundColor(selectedAnnotation.backgroundColor || 'transparent');
             setOpacity(selectedAnnotation.opacity !== undefined ? selectedAnnotation.opacity : 1);
+            setOpacity(selectedAnnotation.opacity !== undefined ? selectedAnnotation.opacity : 1);
             setFontFamily(selectedAnnotation.fontFamily || 'Helvetica');
+            setFontWeight(selectedAnnotation.fontWeight || 'normal');
+            setFontStyle(selectedAnnotation.fontStyle || 'normal');
+            setTextDecoration(selectedAnnotation.textDecoration || 'none');
         }
     }, [selectedAnnotation]);
 
@@ -124,6 +131,24 @@ export const TextFormatPanel: React.FC = () => {
         updateAnnotation(selectedAnnotation.id, { fontFamily: newFont });
     };
 
+    const toggleBold = () => {
+        const newWeight = fontWeight === 'bold' ? 'normal' : 'bold';
+        setFontWeight(newWeight);
+        updateAnnotation(selectedAnnotation.id, { fontWeight: newWeight });
+    };
+
+    const toggleItalic = () => {
+        const newStyle = fontStyle === 'italic' ? 'normal' : 'italic';
+        setFontStyle(newStyle);
+        updateAnnotation(selectedAnnotation.id, { fontStyle: newStyle });
+    };
+
+    const toggleUnderline = () => {
+        const newDecor = textDecoration === 'underline' ? 'none' : 'underline';
+        setTextDecoration(newDecor);
+        updateAnnotation(selectedAnnotation.id, { textDecoration: newDecor });
+    };
+
 
     return (
         <div
@@ -131,24 +156,32 @@ export const TextFormatPanel: React.FC = () => {
             onMouseDown={handleMouseDown}
             style={{
                 position: 'fixed',
-                // Default to top center if not moved
-                top: position.y !== 0 ? position.y : '80px',
-                left: position.x !== 0 ? position.x : '50%',
-                transform: position.x !== 0 ? 'none' : 'translateX(-50%)',
+                // Default to top left if not moved
+                top: position.y !== 0 ? position.y : '160px',
+                left: position.x !== 0 ? position.x : '20px',
+                transform: 'none',
                 background: 'white',
                 border: '1px solid var(--color-border)',
                 borderRadius: 'var(--radius-md)',
-                padding: '0.75rem',
+                padding: '1rem',
                 boxShadow: 'var(--shadow-lg)',
                 display: 'flex',
-                gap: '1rem',
-                alignItems: 'center',
-                zIndex: 1000, // Very high to be over everything
-                flexWrap: 'wrap',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                alignItems: 'stretch',
+                zIndex: 1000,
+                minWidth: '240px',
+                maxWidth: '280px',
                 cursor: isDragging ? 'grabbing' : 'grab',
-                borderTop: '4px solid var(--color-primary)' // Visual indicator for the "handle" area
+                userSelect: 'none'
             }}
         >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
+                <Type size={16} color="var(--color-primary)" />
+                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Text Format</span>
+            </div>
+
             {/* Font Size */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Type size={16} color="var(--color-text-secondary)" />
@@ -230,6 +263,54 @@ export const TextFormatPanel: React.FC = () => {
                         ))}
                     </div>
                 )}
+            </div>
+
+
+
+            {/* Font Styling (Bold, Italic, Underline) */}
+            <div style={{ display: 'flex', gap: '0.25rem', paddingLeft: '0.5rem', borderLeft: '1px solid var(--color-border)' }}>
+                <button
+                    onClick={toggleBold}
+                    title="Bold"
+                    style={{
+                        padding: '0.25rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: fontWeight === 'bold' ? '#eff6ff' : 'transparent',
+                        color: fontWeight === 'bold' ? 'var(--color-primary)' : 'var(--color-text)',
+                        border: fontWeight === 'bold' ? '1px solid var(--color-primary)' : '1px solid transparent',
+                        cursor: 'pointer'
+                    }}
+                >
+                    <Bold size={16} />
+                </button>
+                <button
+                    onClick={toggleItalic}
+                    title="Italic"
+                    style={{
+                        padding: '0.25rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: fontStyle === 'italic' ? '#eff6ff' : 'transparent',
+                        color: fontStyle === 'italic' ? 'var(--color-primary)' : 'var(--color-text)',
+                        border: fontStyle === 'italic' ? '1px solid var(--color-primary)' : '1px solid transparent',
+                        cursor: 'pointer'
+                    }}
+                >
+                    <Italic size={16} />
+                </button>
+                <button
+                    onClick={toggleUnderline}
+                    title="Underline"
+                    style={{
+                        padding: '0.25rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: textDecoration === 'underline' ? '#eff6ff' : 'transparent',
+                        color: textDecoration === 'underline' ? 'var(--color-primary)' : 'var(--color-text)',
+                        border: textDecoration === 'underline' ? '1px solid var(--color-primary)' : '1px solid transparent',
+                        cursor: 'pointer'
+                    }}
+                >
+                    <Underline size={16} />
+                </button>
             </div>
 
             {/* Text Color */}
@@ -327,6 +408,6 @@ export const TextFormatPanel: React.FC = () => {
                     {Math.round(opacity * 100)}%
                 </span>
             </div>
-        </div>
+        </div >
     );
 };

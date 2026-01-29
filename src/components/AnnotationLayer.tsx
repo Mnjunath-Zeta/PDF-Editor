@@ -16,7 +16,9 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
         updateAnnotation,
         selectedAnnotationId,
         selectAnnotation,
-        scale // Need scale to normalize coordinates
+        scale, // Need scale to normalize coordinates
+        defaultShapeColor,
+        defaultShapeFillColor
     } = useEditorStore();
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -24,9 +26,13 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
     const [startPos, setStartPos] = useState({ x: 0, y: 0 });
     const [currentRect, setCurrentRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
     const [currentShape, setCurrentShape] = useState<{ x: number, y: number, endX: number, endY: number } | null>(null);
+    const [currentPath, setCurrentPath] = useState<{ x: number, y: number }[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [pendingImageRect, setPendingImageRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [draggedAnnotationId, setDraggedAnnotationId] = useState<string | null>(null);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+    const [alignmentGuides, setAlignmentGuides] = useState<{ type: 'vertical' | 'horizontal', position: number }[]>([]);
 
     // Filter annotations for this page
     const pageAnnotations = annotations.filter(a => a.page === pageNumber);
@@ -75,6 +81,8 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
             setCurrentRect({ x, y, w: 0, h: 0 });
         } else if (selectedTool === 'line' || selectedTool === 'arrow') {
             setCurrentShape({ x, y, endX: x, endY: y });
+        } else if (selectedTool === 'draw') {
+            setCurrentPath([{ x, y }]);
         }
     };
 
@@ -97,11 +105,128 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
     const handleMouseMove = (e: React.MouseEvent) => {
         const { x, y } = getRelativeCoords(e);
 
-        // Handle dragging
+        // Handle dragging with Snapping
         if (isDragging && draggedAnnotationId) {
-            const newX = (x - dragOffset.x) / scale;
-            const newY = (y - dragOffset.y) / scale;
-            // Use moveAnnotation to update position without bloat history
+            const draggingAnn = annotations.find(a => a.id === draggedAnnotationId);
+            if (!draggingAnn) return;
+
+            let newX = (x - dragOffset.x) / scale;
+            let newY = (y - dragOffset.y) / scale;
+
+            // Alignment Logic
+            const guides: { type: 'vertical' | 'horizontal', position: number }[] = [];
+            const SNAP_DISTANCE = 8; // Pixel distance to snap
+
+            if (containerRef.current) {
+                const pageW = containerRef.current.offsetWidth / scale;
+                const pageH = containerRef.current.offsetHeight / scale;
+                const w = draggingAnn.width || 0;
+                const h = draggingAnn.height || 0;
+
+                // --- Vertical Snapping (X) ---
+                const vCandidates = [
+                    { val: 0, type: 'page' }, // Page Left
+                    { val: pageW * 0.25, type: 'page' }, // 1/4
+                    { val: pageW / 2, type: 'page' }, // Page Center
+                    { val: pageW * 0.75, type: 'page' }, // 3/4
+                    { val: pageW, type: 'page' }, // Page Right
+                ];
+                // Add other annotations
+                pageAnnotations.forEach(other => {
+                    if (other.id === draggedAnnotationId) return;
+                    vCandidates.push({ val: other.x, type: 'item' });
+                    if (other.width) {
+                        vCandidates.push({ val: other.x + other.width, type: 'item' });
+                        vCandidates.push({ val: other.x + other.width / 2, type: 'item' });
+                    }
+                });
+
+                // Edges to check: Left (newX), Center (newX + w/2), Right (newX + w)
+                let snappedX = false;
+                // Check Left
+                for (const cand of vCandidates) {
+                    if (Math.abs(cand.val - newX) * scale < SNAP_DISTANCE) {
+                        newX = cand.val;
+                        guides.push({ type: 'vertical', position: cand.val });
+                        snappedX = true;
+                        break;
+                    }
+                }
+                // Check Center
+                if (!snappedX) {
+                    for (const cand of vCandidates) {
+                        if (Math.abs(cand.val - (newX + w / 2)) * scale < SNAP_DISTANCE) {
+                            newX = cand.val - w / 2;
+                            guides.push({ type: 'vertical', position: cand.val });
+                            snappedX = true;
+                            break;
+                        }
+                    }
+                }
+                // Check Right
+                if (!snappedX) {
+                    for (const cand of vCandidates) {
+                        if (Math.abs(cand.val - (newX + w)) * scale < SNAP_DISTANCE) {
+                            newX = cand.val - w;
+                            guides.push({ type: 'vertical', position: cand.val });
+                            snappedX = true;
+                            break;
+                        }
+                    }
+                }
+
+                // --- Horizontal Snapping (Y) ---
+                const hCandidates = [
+                    { val: 0, type: 'page' },
+                    { val: pageH * 0.25, type: 'page' }, // 1/4
+                    { val: pageH / 2, type: 'page' },
+                    { val: pageH * 0.75, type: 'page' }, // 3/4
+                    { val: pageH, type: 'page' },
+                ];
+                pageAnnotations.forEach(other => {
+                    if (other.id === draggedAnnotationId) return;
+                    hCandidates.push({ val: other.y, type: 'item' });
+                    if (other.height) {
+                        hCandidates.push({ val: other.y + other.height, type: 'item' });
+                        hCandidates.push({ val: other.y + other.height / 2, type: 'item' });
+                    }
+                });
+
+                let snappedY = false;
+                // Top
+                for (const cand of hCandidates) {
+                    if (Math.abs(cand.val - newY) * scale < SNAP_DISTANCE) {
+                        newY = cand.val;
+                        guides.push({ type: 'horizontal', position: cand.val });
+                        snappedY = true;
+                        break;
+                    }
+                }
+                // Middle
+                if (!snappedY) {
+                    for (const cand of hCandidates) {
+                        if (Math.abs(cand.val - (newY + h / 2)) * scale < SNAP_DISTANCE) {
+                            newY = cand.val - h / 2;
+                            guides.push({ type: 'horizontal', position: cand.val });
+                            snappedY = true;
+                            break;
+                        }
+                    }
+                }
+                // Bottom
+                if (!snappedY) {
+                    for (const cand of hCandidates) {
+                        if (Math.abs(cand.val - (newY + h)) * scale < SNAP_DISTANCE) {
+                            newY = cand.val - h;
+                            guides.push({ type: 'horizontal', position: cand.val });
+                            snappedY = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            setAlignmentGuides(guides);
             moveAnnotation(draggedAnnotationId, newX, newY);
             return;
         }
@@ -115,11 +240,12 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
             setCurrentRect({ x: startPos.x, y: startPos.y, w, h });
         } else if (selectedTool === 'line' || selectedTool === 'arrow') {
             setCurrentShape({ x: startPos.x, y: startPos.y, endX: x, endY: y });
+        } else if (selectedTool === 'draw') {
+            setCurrentPath(prev => [...prev, { x, y }]);
         }
     };
 
     const handleMouseUp = () => {
-        // End dragging
         if (isDragging && draggedAnnotationId) {
             // Find the current position to commit to history
             const ann = annotations.find(a => a.id === draggedAnnotationId);
@@ -129,13 +255,25 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
             }
             setIsDragging(false);
             setDraggedAnnotationId(null);
+            setAlignmentGuides([]);
             return;
         }
 
         if (!isDrawing) return;
         setIsDrawing(false);
 
+        if (selectedTool === 'image' && currentRect && (Math.abs(currentRect.w) > 5 || Math.abs(currentRect.h) > 5)) {
+            setPendingImageRect(currentRect);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ''; // Reset
+                fileInputRef.current.click();
+            }
+            setCurrentRect(null);
+            return;
+        }
+
         if ((selectedTool === 'rect' || selectedTool === 'patch' || selectedTool === 'circle') && currentRect && (Math.abs(currentRect.w) > 5 || Math.abs(currentRect.h) > 5)) {
+            const { defaultShapeColor, defaultShapeFillColor, defaultShapeStrokeWidth, defaultShapeStrokeStyle } = useEditorStore.getState();
             addAnnotation({
                 id: nanoid(),
                 type: selectedTool === 'patch' ? 'rect' : selectedTool,
@@ -145,11 +283,13 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                 y: currentRect.y / scale,
                 width: currentRect.w / scale,
                 height: currentRect.h / scale,
-                color: selectedTool === 'patch' ? 'white' : 'red',
-                strokeWidth: selectedTool === 'patch' ? 0 : 2,
-                strokeStyle: 'solid'
+                color: selectedTool === 'patch' ? 'white' : defaultShapeColor,
+                fillColor: selectedTool === 'patch' ? 'white' : defaultShapeFillColor,
+                strokeWidth: selectedTool === 'patch' ? 0 : defaultShapeStrokeWidth,
+                strokeStyle: selectedTool === 'patch' ? 'solid' : defaultShapeStrokeStyle
             });
         } else if ((selectedTool === 'line' || selectedTool === 'arrow') && currentShape) {
+            const { defaultShapeColor, defaultShapeStrokeWidth, defaultShapeStrokeStyle } = useEditorStore.getState();
             addAnnotation({
                 id: nanoid(),
                 type: selectedTool,
@@ -158,14 +298,49 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                 y: currentShape.y / scale,
                 endX: currentShape.endX / scale,
                 endY: currentShape.endY / scale,
-                color: 'red',
-                strokeWidth: 2,
-                strokeStyle: 'solid'
+                color: defaultShapeColor,
+                strokeWidth: defaultShapeStrokeWidth,
+                strokeStyle: defaultShapeStrokeStyle
+            });
+        } else if (selectedTool === 'draw' && currentPath.length > 1) {
+            const { defaultShapeColor, defaultShapeStrokeWidth } = useEditorStore.getState();
+            addAnnotation({
+                id: nanoid(),
+                type: 'draw',
+                page: pageNumber,
+                x: 0, // Not used for draw (path covers it)
+                y: 0,
+                points: currentPath.map(p => ({ x: p.x / scale, y: p.y / scale })),
+                color: defaultShapeColor,
+                strokeWidth: defaultShapeStrokeWidth
             });
         }
 
         setCurrentRect(null);
         setCurrentShape(null);
+        setCurrentPath([]);
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !pendingImageRect) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const dataUrl = event.target?.result as string;
+            addAnnotation({
+                id: nanoid(),
+                type: 'image',
+                page: pageNumber,
+                x: pendingImageRect.x / scale,
+                y: pendingImageRect.y / scale,
+                width: pendingImageRect.w / scale,
+                height: pendingImageRect.h / scale,
+                image: dataUrl
+            });
+            setPendingImageRect(null);
+        };
+        reader.readAsDataURL(file);
     };
 
     return (
@@ -186,6 +361,24 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
         >
+            {/* Alignment Guides */}
+            {alignmentGuides.map((guide, i) => (
+                <div
+                    key={i}
+                    style={{
+                        position: 'absolute',
+                        top: guide.type === 'horizontal' ? guide.position * scale : 0,
+                        left: guide.type === 'vertical' ? guide.position * scale : 0,
+                        width: guide.type === 'horizontal' ? '100%' : '0px',
+                        height: guide.type === 'vertical' ? '100%' : '0px',
+                        borderLeft: guide.type === 'vertical' ? '2px dotted rgba(71, 85, 105, 0.6)' : 'none',
+                        borderTop: guide.type === 'horizontal' ? '2px dotted rgba(71, 85, 105, 0.6)' : 'none',
+                        zIndex: 100,
+                        pointerEvents: 'none',
+                    }}
+                />
+            ))}
+
             {/* Render Shapes (Lines, Arrows, Circles, Rects) using SVG for better control */}
             <svg style={{
                 position: 'absolute',
@@ -194,7 +387,8 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                 width: '100%',
                 height: '100%',
                 pointerEvents: 'none',
-                overflow: 'visible'
+                overflow: 'visible',
+                zIndex: 1
             }}>
                 <defs>
                     <marker
@@ -246,6 +440,21 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                             />
                         );
                     }
+                    if (ann.type === 'image' && ann.image) {
+                        return (
+                            <image
+                                key={ann.id}
+                                href={ann.image}
+                                x={ann.x * scale}
+                                y={ann.y * scale}
+                                width={(ann.width || 0) * scale}
+                                height={(ann.height || 0) * scale}
+                                preserveAspectRatio="none"
+                                style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move' }}
+                                onMouseDown={(e) => handleAnnotationMouseDown(e, ann)}
+                            />
+                        );
+                    }
                     if (ann.type === 'rect' && ann.color !== 'white') {
                         return (
                             <rect
@@ -263,6 +472,21 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                             />
                         );
                     }
+                    if (ann.type === 'draw' && ann.points) {
+                        return (
+                            <polyline
+                                key={ann.id}
+                                points={ann.points.map((p: any) => `${p.x * scale},${p.y * scale}`).join(' ')}
+                                stroke={ann.color || 'red'}
+                                strokeWidth={(ann.strokeWidth || 2) * scale}
+                                fill="none"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move' }}
+                                onMouseDown={(e) => handleAnnotationMouseDown(e, ann)}
+                            />
+                        );
+                    }
                     return null;
                 })}
 
@@ -273,9 +497,19 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                         y1={currentShape.y}
                         x2={currentShape.endX}
                         y2={currentShape.endY}
-                        stroke="red"
+                        stroke={defaultShapeColor}
                         strokeWidth={2}
                         markerEnd={selectedTool === 'arrow' ? 'url(#arrowhead)' : undefined}
+                    />
+                )}
+                {isDrawing && currentPath.length > 0 && selectedTool === 'draw' && (
+                    <polyline
+                        points={currentPath.map(p => `${p.x},${p.y}`).join(' ')}
+                        stroke={defaultShapeColor}
+                        strokeWidth={2}
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                     />
                 )}
                 {isDrawing && currentRect && selectedTool === 'circle' && (
@@ -284,9 +518,9 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                         cy={currentRect.y + currentRect.h / 2}
                         rx={Math.abs(currentRect.w / 2)}
                         ry={Math.abs(currentRect.h / 2)}
-                        stroke="red"
+                        stroke={defaultShapeColor}
                         strokeWidth={2}
-                        fill="rgba(255, 0, 0, 0.1)"
+                        fill={defaultShapeFillColor === 'transparent' ? 'none' : defaultShapeFillColor}
                     />
                 )}
                 {isDrawing && currentRect && selectedTool === 'rect' && (
@@ -295,9 +529,21 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                         y={currentRect.y}
                         width={currentRect.w}
                         height={currentRect.h}
-                        stroke="red"
+                        stroke={defaultShapeColor}
                         strokeWidth={2}
-                        fill="rgba(255, 0, 0, 0.1)"
+                        fill={defaultShapeFillColor === 'transparent' ? 'none' : defaultShapeFillColor}
+                    />
+                )}
+                {isDrawing && currentRect && selectedTool === 'patch' && (
+                    <rect
+                        x={currentRect.x}
+                        y={currentRect.y}
+                        width={currentRect.w}
+                        height={currentRect.h}
+                        stroke="#94a3b8"
+                        strokeWidth={2}
+                        strokeDasharray="5,5"
+                        fill="rgba(255, 255, 255, 0.8)"
                     />
                 )}
             </svg>
@@ -319,7 +565,7 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                         userSelect: 'none',
                         // Allow clicks to pass through patches when not in select mode
                         pointerEvents: (ann.type === 'rect' && ann.color === 'white' && selectedTool !== 'select') ? 'none' : (ann.type === 'text' || (ann.type === 'rect' && ann.color === 'white')) ? 'auto' : 'none',
-                        zIndex: ann.type === 'text' ? 2 : 1,
+                        zIndex: ann.type === 'text' ? 2 : (ann.type === 'rect' && ann.color === 'white') ? 0 : 1,
                         display: (ann.type === 'text' || (ann.type === 'rect' && ann.color === 'white')) ? 'block' : 'none'
                     }}
                 >
@@ -340,6 +586,9 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                                 background: ann.backgroundColor || 'transparent',
                                 outline: 'none',
                                 fontFamily: ann.fontFamily || 'Helvetica',
+                                fontWeight: ann.fontWeight || 'normal',
+                                fontStyle: ann.fontStyle || 'normal',
+                                textDecoration: ann.textDecoration || 'none',
                                 textAlign: ann.textAlign || 'left',
                                 opacity: ann.opacity !== undefined ? Math.max(0, Math.min(1, ann.opacity)) : 1,
                                 padding: (ann.backgroundColor && ann.backgroundColor !== 'transparent') ? '2px 4px' : '0',
@@ -366,6 +615,14 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                     backgroundColor: 'rgba(255, 255, 255, 0.5)'
                 }} />
             )}
+
+            <input
+                type="file"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                accept="image/*"
+                onChange={handleImageUpload}
+            />
         </div>
     );
 };

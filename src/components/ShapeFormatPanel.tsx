@@ -3,15 +3,32 @@ import { Maximize } from 'lucide-react';
 import { useEditorStore } from '../store/useEditorStore';
 
 export const ShapeFormatPanel: React.FC = () => {
-    const { selectedAnnotationId, annotations, updateAnnotation } = useEditorStore();
+    const {
+        selectedAnnotationId,
+        annotations,
+        updateAnnotation,
+        selectedTool,
+        defaultShapeColor,
+        defaultShapeFillColor,
+        defaultShapeStrokeWidth,
+        defaultShapeStrokeStyle,
+        setDefaultShapeColor,
+        setDefaultShapeFillColor,
+        setDefaultShapeStrokeWidth,
+        setDefaultShapeStrokeStyle
+    } = useEditorStore();
+
     const selectedAnnotation = annotations.find(a => a.id === selectedAnnotationId);
+    const isShapeSelected = selectedAnnotation && ['line', 'arrow', 'rect', 'circle'].includes(selectedAnnotation.type);
+    const isShapeToolActive = ['line', 'arrow', 'rect', 'circle', 'draw'].includes(selectedTool);
 
-    const isShape = selectedAnnotation && ['line', 'arrow', 'rect', 'circle'].includes(selectedAnnotation.type);
+    // Show panel if a shape is selected OR a shape tool is active
+    const shouldShow = isShapeSelected || isShapeToolActive;
 
-    const [strokeColor, setStrokeColor] = useState('#ff0000');
-    const [fillColor, setFillColor] = useState('transparent');
-    const [strokeWidth, setStrokeWidth] = useState(2);
-    const [strokeStyle, setStrokeStyle] = useState<'solid' | 'dashed' | 'dotted'>('solid');
+    const [strokeColor, setStrokeColor] = useState(defaultShapeColor);
+    const [fillColor, setFillColor] = useState(defaultShapeFillColor);
+    const [strokeWidth, setStrokeWidth] = useState(defaultShapeStrokeWidth);
+    const [strokeStyle, setStrokeStyle] = useState<'solid' | 'dashed' | 'dotted'>(defaultShapeStrokeStyle);
 
     // Dragging state
     const [isDragging, setIsDragging] = useState(false);
@@ -20,13 +37,20 @@ export const ShapeFormatPanel: React.FC = () => {
     const panelRef = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (selectedAnnotation && isShape) {
-            setStrokeColor(selectedAnnotation.color || '#ff0000');
-            setFillColor(selectedAnnotation.fillColor || 'transparent');
-            setStrokeWidth(selectedAnnotation.strokeWidth || 2);
-            setStrokeStyle(selectedAnnotation.strokeStyle || 'solid');
+        if (isShapeSelected) {
+            // Editing existing shape
+            setStrokeColor(selectedAnnotation.color || defaultShapeColor);
+            setFillColor(selectedAnnotation.fillColor || defaultShapeFillColor);
+            setStrokeWidth(selectedAnnotation.strokeWidth || defaultShapeStrokeWidth);
+            setStrokeStyle(selectedAnnotation.strokeStyle || defaultShapeStrokeStyle);
+        } else {
+            // Setting defaults for new shapes
+            setStrokeColor(defaultShapeColor);
+            setFillColor(defaultShapeFillColor);
+            setStrokeWidth(defaultShapeStrokeWidth);
+            setStrokeStyle(defaultShapeStrokeStyle);
         }
-    }, [selectedAnnotation, isShape]);
+    }, [selectedAnnotation, isShapeSelected, defaultShapeColor, defaultShapeFillColor, defaultShapeStrokeWidth, defaultShapeStrokeStyle]);
 
     const handleMouseDown = (e: React.MouseEvent) => {
         if ((e.target as HTMLElement).closest('button, input, select')) return;
@@ -61,7 +85,7 @@ export const ShapeFormatPanel: React.FC = () => {
         };
     }, [isDragging, dragStart]);
 
-    if (!isShape) return null;
+    if (!shouldShow) return null;
 
     const colors = [
         '#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff',
@@ -74,9 +98,9 @@ export const ShapeFormatPanel: React.FC = () => {
             onMouseDown={handleMouseDown}
             style={{
                 position: 'fixed',
-                top: position.y !== 0 ? position.y : '140px',
-                left: position.x !== 0 ? position.x : '50%',
-                transform: position.x !== 0 ? 'none' : 'translateX(-50%)',
+                top: position.y !== 0 ? position.y : '160px',
+                left: position.x !== 0 ? position.x : '20px',
+                transform: 'none',
                 background: 'white',
                 border: '1px solid var(--color-border)',
                 borderRadius: 'var(--radius-md)',
@@ -93,7 +117,9 @@ export const ShapeFormatPanel: React.FC = () => {
         >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
                 <Maximize size={16} color="var(--color-primary)" />
-                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Shape Properties</span>
+                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                    {isShapeSelected ? 'Edit Shape' : 'Default Shape Style'}
+                </span>
             </div>
 
             {/* Stroke Color */}
@@ -105,7 +131,11 @@ export const ShapeFormatPanel: React.FC = () => {
                             key={c}
                             onClick={() => {
                                 setStrokeColor(c);
-                                updateAnnotation(selectedAnnotation.id, { color: c });
+                                if (isShapeSelected && selectedAnnotation) {
+                                    updateAnnotation(selectedAnnotation.id, { color: c });
+                                } else {
+                                    setDefaultShapeColor(c);
+                                }
                             }}
                             style={{
                                 width: '24px',
@@ -122,7 +152,11 @@ export const ShapeFormatPanel: React.FC = () => {
                         value={strokeColor}
                         onChange={(e) => {
                             setStrokeColor(e.target.value);
-                            updateAnnotation(selectedAnnotation.id, { color: e.target.value });
+                            if (isShapeSelected && selectedAnnotation) {
+                                updateAnnotation(selectedAnnotation.id, { color: e.target.value });
+                            } else {
+                                setDefaultShapeColor(e.target.value);
+                            }
                         }}
                         style={{ width: '24px', height: '24px', padding: 0, border: 'none', background: 'none' }}
                     />
@@ -130,14 +164,18 @@ export const ShapeFormatPanel: React.FC = () => {
             </div>
 
             {/* Fill Color (if applicable) */}
-            {['rect', 'circle'].includes(selectedAnnotation.type) && (
+            {(isShapeSelected && selectedAnnotation && ['rect', 'circle'].includes(selectedAnnotation.type) || (!isShapeSelected && ['rect', 'circle'].includes(selectedTool))) && (
                 <div>
                     <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '0.5rem' }}>Fill Color</label>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                         <button
                             onClick={() => {
                                 setFillColor('transparent');
-                                updateAnnotation(selectedAnnotation.id, { fillColor: 'transparent' });
+                                if (isShapeSelected && selectedAnnotation) {
+                                    updateAnnotation(selectedAnnotation.id, { fillColor: 'transparent' });
+                                } else {
+                                    setDefaultShapeFillColor('transparent');
+                                }
                             }}
                             style={{
                                 padding: '0.25rem 0.5rem',
@@ -155,7 +193,11 @@ export const ShapeFormatPanel: React.FC = () => {
                             value={fillColor === 'transparent' ? '#ffffff' : fillColor}
                             onChange={(e) => {
                                 setFillColor(e.target.value);
-                                updateAnnotation(selectedAnnotation.id, { fillColor: e.target.value });
+                                if (isShapeSelected && selectedAnnotation) {
+                                    updateAnnotation(selectedAnnotation.id, { fillColor: e.target.value });
+                                } else {
+                                    setDefaultShapeFillColor(e.target.value);
+                                }
                             }}
                             style={{ width: '24px', height: '24px', padding: 0, border: 'none', background: 'none' }}
                         />
@@ -172,7 +214,11 @@ export const ShapeFormatPanel: React.FC = () => {
                         onChange={(e) => {
                             const val = parseInt(e.target.value);
                             setStrokeWidth(val);
-                            updateAnnotation(selectedAnnotation.id, { strokeWidth: val });
+                            if (isShapeSelected && selectedAnnotation) {
+                                updateAnnotation(selectedAnnotation.id, { strokeWidth: val });
+                            } else {
+                                setDefaultShapeStrokeWidth(val);
+                            }
                         }}
                         style={{ width: '100%', padding: '0.25rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                     >
@@ -186,7 +232,11 @@ export const ShapeFormatPanel: React.FC = () => {
                         onChange={(e) => {
                             const val = e.target.value as any;
                             setStrokeStyle(val);
-                            updateAnnotation(selectedAnnotation.id, { strokeStyle: val });
+                            if (isShapeSelected && selectedAnnotation) {
+                                updateAnnotation(selectedAnnotation.id, { strokeStyle: val });
+                            } else {
+                                setDefaultShapeStrokeStyle(val);
+                            }
                         }}
                         style={{ width: '100%', padding: '0.25rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                     >
