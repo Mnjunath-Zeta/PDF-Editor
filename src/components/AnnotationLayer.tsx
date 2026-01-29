@@ -37,16 +37,29 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
     // Filter annotations for this page
     const pageAnnotations = annotations.filter(a => a.page === pageNumber);
 
-    const getRelativeCoords = (e: React.MouseEvent) => {
+    const getRelativeCoords = (e: React.MouseEvent | React.TouchEvent | any) => {
         if (!containerRef.current) return { x: 0, y: 0 };
         const rect = containerRef.current.getBoundingClientRect();
+
+        let clientX, clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else if (e.changedTouches && e.changedTouches.length > 0) {
+            clientX = e.changedTouches[0].clientX;
+            clientY = e.changedTouches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+
         return {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
+            x: clientX - rect.left,
+            y: clientY - rect.top,
         };
     };
 
-    const handleMouseDown = (e: React.MouseEvent) => {
+    const handleMouseDown = (e: React.MouseEvent | React.TouchEvent | any) => {
         const { x, y } = getRelativeCoords(e);
 
         // If select tool and clicking on background (not handled by annotation), deselect
@@ -86,7 +99,7 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
         }
     };
 
-    const handleAnnotationMouseDown = (e: React.MouseEvent, ann: any) => {
+    const handleAnnotationMouseDown = (e: React.MouseEvent | React.TouchEvent | any, ann: any) => {
         e.stopPropagation();
 
         if (selectedTool === 'select') {
@@ -102,7 +115,7 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
         }
     };
 
-    const handleMouseMove = (e: React.MouseEvent) => {
+    const handleMouseMove = (e: React.MouseEvent | React.TouchEvent | any) => {
         const { x, y } = getRelativeCoords(e);
 
         // Handle dragging with Snapping
