@@ -367,12 +367,16 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                 height: '100%',
                 zIndex: 10,
                 cursor: selectedTool === 'select' ? 'default' : 'crosshair',
-                pointerEvents: 'all'
+                pointerEvents: 'all',
+                touchAction: selectedTool === 'select' ? 'auto' : 'none'
             }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
+            onTouchStart={handleMouseDown}
+            onTouchMove={handleMouseMove}
+            onTouchEnd={handleMouseUp}
         >
             {/* Alignment Guides */}
             {alignmentGuides.map((guide, i) => (
@@ -431,8 +435,9 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                                 strokeWidth={(ann.strokeWidth || 2) * scale}
                                 strokeDasharray={strokeStyleAttr}
                                 markerEnd={ann.type === 'arrow' ? 'url(#arrowhead)' : undefined}
-                                style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move' }}
+                                style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move', touchAction: 'none' }}
                                 onMouseDown={(e) => handleAnnotationMouseDown(e, ann)}
+                                onTouchStart={(e) => handleAnnotationMouseDown(e, ann)}
                             />
                         );
                     }
@@ -448,8 +453,9 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                                 strokeWidth={(ann.strokeWidth || 2) * scale}
                                 strokeDasharray={strokeStyleAttr}
                                 fill={ann.fillColor || 'transparent'}
-                                style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move' }}
+                                style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move', touchAction: 'none' }}
                                 onMouseDown={(e) => handleAnnotationMouseDown(e, ann)}
+                                onTouchStart={(e) => handleAnnotationMouseDown(e, ann)}
                             />
                         );
                     }
@@ -463,8 +469,9 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                                 width={(ann.width || 0) * scale}
                                 height={(ann.height || 0) * scale}
                                 preserveAspectRatio="none"
-                                style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move' }}
+                                style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move', touchAction: 'none' }}
                                 onMouseDown={(e) => handleAnnotationMouseDown(e, ann)}
+                                onTouchStart={(e) => handleAnnotationMouseDown(e, ann)}
                             />
                         );
                     }
@@ -480,8 +487,9 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                                 strokeWidth={(ann.strokeWidth || 2) * scale}
                                 strokeDasharray={strokeStyleAttr}
                                 fill={ann.fillColor || 'transparent'}
-                                style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move' }}
+                                style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move', touchAction: 'none' }}
                                 onMouseDown={(e) => handleAnnotationMouseDown(e, ann)}
+                                onTouchStart={(e) => handleAnnotationMouseDown(e, ann)}
                             />
                         );
                     }
@@ -497,6 +505,7 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                                 strokeLinejoin="round"
                                 style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move' }}
                                 onMouseDown={(e) => handleAnnotationMouseDown(e, ann)}
+                                onTouchStart={(e) => handleAnnotationMouseDown(e, ann)}
                             />
                         );
                     }
@@ -566,6 +575,7 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                 <div
                     key={ann.id}
                     onMouseDown={(e) => handleAnnotationMouseDown(e, ann)}
+                    onTouchStart={(e) => handleAnnotationMouseDown(e, ann)}
                     style={{
                         position: 'absolute',
                         left: ann.x * scale,
@@ -579,7 +589,8 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                         // Allow clicks to pass through patches when not in select mode
                         pointerEvents: (ann.type === 'rect' && ann.color === 'white' && selectedTool !== 'select') ? 'none' : (ann.type === 'text' || (ann.type === 'rect' && ann.color === 'white')) ? 'auto' : 'none',
                         zIndex: ann.type === 'text' ? 2 : (ann.type === 'rect' && ann.color === 'white') ? 0 : 1,
-                        display: (ann.type === 'text' || (ann.type === 'rect' && ann.color === 'white')) ? 'block' : 'none'
+                        display: (ann.type === 'text' || (ann.type === 'rect' && ann.color === 'white')) ? 'block' : 'none',
+                        touchAction: 'none'
                     }}
                 >
                     {ann.type === 'text' && (

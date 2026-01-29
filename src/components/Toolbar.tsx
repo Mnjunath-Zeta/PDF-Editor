@@ -158,7 +158,10 @@ export const Toolbar: React.FC = () => {
                 background: '#f1f5f9',
                 padding: '0.3rem',
                 borderRadius: 'var(--radius-md)',
-                border: '1px solid #e2e8f0'
+                border: '1px solid #e2e8f0',
+                overflowX: 'auto',
+                maxWidth: '100%',
+                scrollbarWidth: 'none'
             }}>
                 {tools.map((tool) => (
                     <button
