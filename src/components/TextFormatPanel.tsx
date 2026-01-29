@@ -23,6 +23,13 @@ export const TextFormatPanel: React.FC = () => {
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const panelRef = React.useRef<HTMLDivElement>(null);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Popular fonts that work well in PDFs
     const popularFonts = [
@@ -153,17 +160,21 @@ export const TextFormatPanel: React.FC = () => {
     return (
         <div
             ref={panelRef}
-            onMouseDown={handleMouseDown}
+            onMouseDown={!isMobile ? handleMouseDown : undefined}
             style={{
                 position: 'fixed',
                 // Default to top left if not moved
-                top: position.y !== 0 ? position.y : '160px',
-                left: position.x !== 0 ? position.x : '20px',
+                top: isMobile ? 'auto' : (position.y !== 0 ? position.y : 160),
+                left: isMobile ? 0 : (position.x !== 0 ? position.x : 20),
+                bottom: isMobile ? 0 : 'auto',
+                width: isMobile ? '100%' : '200px',
                 transform: 'none',
                 background: 'white',
                 border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '1rem',
+                borderRadius: isMobile ? '16px 16px 0 0' : 'var(--radius-md)',
+                padding: isMobile ? '12px' : '1rem',
+                maxHeight: isMobile ? '45vh' : '80vh',
+                overflowY: 'auto',
                 boxShadow: 'var(--shadow-lg)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -172,7 +183,7 @@ export const TextFormatPanel: React.FC = () => {
                 zIndex: 1000,
                 minWidth: '240px',
                 maxWidth: '280px',
-                cursor: isDragging ? 'grabbing' : 'grab',
+                cursor: isMobile ? 'default' : (isDragging ? 'grabbing' : 'grab'),
                 userSelect: 'none'
             }}
         >

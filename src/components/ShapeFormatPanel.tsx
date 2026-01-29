@@ -35,6 +35,13 @@ export const ShapeFormatPanel: React.FC = () => {
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const panelRef = React.useRef<HTMLDivElement>(null);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         if (isShapeSelected) {
@@ -95,23 +102,27 @@ export const ShapeFormatPanel: React.FC = () => {
     return (
         <div
             ref={panelRef}
-            onMouseDown={handleMouseDown}
+            onMouseDown={!isMobile ? handleMouseDown : undefined}
             style={{
                 position: 'fixed',
-                top: position.y !== 0 ? position.y : '160px',
-                left: position.x !== 0 ? position.x : '20px',
+                top: isMobile ? 'auto' : (position.y !== 0 ? position.y : 160),
+                left: isMobile ? 0 : (position.x !== 0 ? position.x : 20),
+                bottom: isMobile ? 0 : 'auto',
+                width: isMobile ? '100%' : '200px',
                 transform: 'none',
                 background: 'white',
                 border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-md)',
+                borderRadius: isMobile ? '16px 16px 0 0' : 'var(--radius-md)',
                 boxShadow: 'var(--shadow-lg)',
-                padding: '1rem',
+                padding: isMobile ? '12px' : '1rem',
+                maxHeight: isMobile ? '45vh' : 'auto',
+                overflowY: 'auto',
                 zIndex: 1000,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '1rem',
-                minWidth: '240px',
-                cursor: isDragging ? 'grabbing' : 'grab',
+                minWidth: isMobile ? '100%' : '240px',
+                cursor: isMobile ? 'default' : (isDragging ? 'grabbing' : 'grab'),
                 userSelect: 'none'
             }}
         >
