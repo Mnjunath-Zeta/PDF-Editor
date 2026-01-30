@@ -409,14 +409,14 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
             }}>
                 <defs>
                     <marker
-                        id="arrowhead"
+                        id="arrowhead-preview"
                         markerWidth="10"
                         markerHeight="7"
                         refX="9"
                         refY="3.5"
                         orient="auto"
                     >
-                        <polygon points="0 0, 10 3.5, 0 7" fill="red" />
+                        <polygon points="0 0, 10 3.5, 0 7" fill={defaultShapeColor || 'black'} />
                     </marker>
                 </defs>
 
@@ -425,20 +425,35 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
 
                     if (ann.type === 'line' || ann.type === 'arrow') {
                         return (
-                            <line
-                                key={ann.id}
-                                x1={ann.x * scale}
-                                y1={ann.y * scale}
-                                x2={(ann.endX || ann.x) * scale}
-                                y2={(ann.endY || ann.y) * scale}
-                                stroke={ann.color || 'red'}
-                                strokeWidth={(ann.strokeWidth || 2) * scale}
-                                strokeDasharray={strokeStyleAttr}
-                                markerEnd={ann.type === 'arrow' ? 'url(#arrowhead)' : undefined}
-                                style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move', touchAction: 'none' }}
-                                onMouseDown={(e) => handleAnnotationMouseDown(e, ann)}
-                                onTouchStart={(e) => handleAnnotationMouseDown(e, ann)}
-                            />
+                            <React.Fragment key={ann.id}>
+                                {ann.type === 'arrow' && (
+                                    <defs>
+                                        <marker
+                                            id={`arrowhead-${ann.id}`}
+                                            markerWidth="10"
+                                            markerHeight="7"
+                                            refX="9"
+                                            refY="3.5"
+                                            orient="auto"
+                                        >
+                                            <polygon points="0 0, 10 3.5, 0 7" fill={ann.color || 'black'} />
+                                        </marker>
+                                    </defs>
+                                )}
+                                <line
+                                    x1={ann.x * scale}
+                                    y1={ann.y * scale}
+                                    x2={(ann.endX || ann.x) * scale}
+                                    y2={(ann.endY || ann.y) * scale}
+                                    stroke={ann.color || 'black'}
+                                    strokeWidth={(ann.strokeWidth || 2) * scale}
+                                    strokeDasharray={strokeStyleAttr}
+                                    markerEnd={ann.type === 'arrow' ? `url(#arrowhead-${ann.id})` : undefined}
+                                    style={{ pointerEvents: selectedTool === 'select' ? 'auto' : 'none', cursor: 'move', touchAction: 'none' }}
+                                    onMouseDown={(e) => handleAnnotationMouseDown(e, ann)}
+                                    onTouchStart={(e) => handleAnnotationMouseDown(e, ann)}
+                                />
+                            </React.Fragment>
                         );
                     }
                     if (ann.type === 'circle') {
@@ -521,7 +536,7 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                         y2={currentShape.endY}
                         stroke={defaultShapeColor}
                         strokeWidth={2}
-                        markerEnd={selectedTool === 'arrow' ? 'url(#arrowhead)' : undefined}
+                        markerEnd={selectedTool === 'arrow' ? 'url(#arrowhead-preview)' : undefined}
                     />
                 )}
                 {isDrawing && currentPath.length > 0 && selectedTool === 'draw' && (
