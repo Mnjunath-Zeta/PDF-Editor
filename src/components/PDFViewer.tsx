@@ -11,18 +11,24 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 export const PDFViewer: React.FC = () => {
-    const { file, scale, setNumPages, currentPage } = useEditorStore();
+    const { file, scale, setNumPages, currentPage, pages, initPages } = useEditorStore();
     const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
 
     if (!file) return null;
 
     const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
         setNumPages(numPages);
+        initPages(numPages);
     };
 
     const onPageLoadSuccess = (page: any) => {
         setPageSize({ width: page.width, height: page.height });
     };
+
+    // Map visual page to original PDF page
+    const activePageConfig = pages[currentPage - 1];
+    const displayPageNumber = activePageConfig ? activePageConfig.originalIndex + 1 : currentPage;
+    const displayRotation = activePageConfig ? activePageConfig.rotation : 0;
 
     return (
         <div
@@ -62,7 +68,8 @@ export const PDFViewer: React.FC = () => {
                     }}
                 >
                     <Page
-                        pageNumber={currentPage}
+                        pageNumber={displayPageNumber}
+                        rotate={displayRotation}
                         scale={scale}
                         renderTextLayer={false} // Disable text selection for now to simplify tool interactions
                         renderAnnotationLayer={false} // We will implement our own annotation layer
@@ -80,7 +87,7 @@ export const PDFViewer: React.FC = () => {
                         }}>
                             {/* AnnotationLayer needs pointerEvents: all */}
                             <AnnotationLayer
-                                pageNumber={currentPage}
+                                pageNumber={displayPageNumber}
                             />
                         </div>
                     )}

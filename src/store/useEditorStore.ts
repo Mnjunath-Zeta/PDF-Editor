@@ -29,6 +29,12 @@ export interface Annotation {
     opacity?: number; // 0-1 for transparency
 }
 
+export interface PageConfig {
+    id: string;
+    originalIndex: number;
+    rotation: number;
+}
+
 interface EditorState {
     file: File | null;
     numPages: number;
@@ -43,6 +49,13 @@ interface EditorState {
     defaultShapeFillColor: string;
     defaultShapeStrokeWidth: number;
     defaultShapeStrokeStyle: 'solid' | 'dashed' | 'dotted';
+
+    // Page Management
+    pages: PageConfig[];
+    initPages: (numPages: number) => void;
+    rotatePage: (pageId: string, direction: 'cw' | 'ccw') => void;
+    movePage: (fromIndex: number, toIndex: number) => void;
+    deletePage: (pageId: string) => void;
 
     setFile: (file: File) => void;
     setNumPages: (num: number) => void;
@@ -88,6 +101,7 @@ export const useEditorStore = create<EditorState>((set) => ({
     defaultShapeFillColor: 'transparent',
     defaultShapeStrokeWidth: 2,
     defaultShapeStrokeStyle: 'solid',
+    pages: [],
     toast: null,
     confirmDialog: null,
 
@@ -98,7 +112,8 @@ export const useEditorStore = create<EditorState>((set) => ({
         annotations: [],
         history: [[]],
         historyIndex: 0,
-        selectedAnnotationId: null
+        selectedAnnotationId: null,
+        pages: []
     }),
     setNumPages: (numPages) => set({ numPages }),
     setCurrentPage: (currentPage) => set({ currentPage }),
@@ -242,4 +257,33 @@ export const useEditorStore = create<EditorState>((set) => ({
 
     showConfirm: (message, onConfirm) => set({ confirmDialog: { message, onConfirm } }),
     hideConfirm: () => set({ confirmDialog: null }),
+
+    initPages: (numPages) => set({
+        pages: Array.from({ length: numPages }, (_, i) => ({
+            id: `page-${i}`,
+            originalIndex: i,
+            rotation: 0
+        }))
+    }),
+    rotatePage: (pageId, direction) => set((state) => ({
+        pages: state.pages.map(p => {
+            if (p.id !== pageId) return p;
+            const delta = direction === 'cw' ? 90 : -90;
+            return { ...p, rotation: (p.rotation + delta + 360) % 360 };
+        })
+    })),
+    movePage: (fromIndex, toIndex) => set((state) => {
+        const newPages = [...state.pages];
+        const [moved] = newPages.splice(fromIndex, 1);
+        newPages.splice(toIndex, 0, moved);
+        return { pages: newPages };
+    }),
+    deletePage: (pageId) => set((state) => {
+        const newPages = state.pages.filter(p => p.id !== pageId);
+        return {
+            pages: newPages,
+            numPages: newPages.length,
+            currentPage: Math.min(state.currentPage, newPages.length) || 1
+        };
+    }),
 }));

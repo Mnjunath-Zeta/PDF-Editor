@@ -18,8 +18,9 @@ import {
     Minus,
     ArrowRight,
     EyeOff,
-
+    LayoutGrid,
 } from 'lucide-react';
+import { PageManager } from './PageManager';
 import { useEditorStore } from '../store/useEditorStore';
 import type { ToolType } from '../store/useEditorStore';
 import { savePDF } from '../utils/pdfProcessing';
@@ -48,10 +49,12 @@ export const Toolbar: React.FC = () => {
         showToast,
         showConfirm,
 
-        addAndSelectAnnotation
+        addAndSelectAnnotation,
+        pages
     } = useEditorStore();
 
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [showPageManager, setShowPageManager] = useState(false);
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', handleResize);
@@ -69,7 +72,7 @@ export const Toolbar: React.FC = () => {
         console.log('Original file:', file.name, file.type, file.size);
 
         try {
-            const pdfBytes = await savePDF(file, annotations);
+            const pdfBytes = await savePDF(file, annotations, pages);
             console.log('PDF generated, size:', pdfBytes.length);
 
             // Create sanitized filename
@@ -391,6 +394,28 @@ export const Toolbar: React.FC = () => {
                     Export PDF
                 </button>
 
+                {/* Page Manager Toggle */}
+                <button
+                    onClick={() => setShowPageManager(true)}
+                    title="Manage Pages"
+                    style={{
+                        padding: '0.6rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'white',
+                        color: 'var(--color-text-secondary)',
+                        border: '1px solid #e2e8f0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                    }}
+                >
+                    <LayoutGrid size={18} />
+                    {!isMobile && "Pages"}
+                </button>
+
                 {/* Zoom & Page Controls */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: isMobile ? 'none' : '1px solid #e2e8f0', paddingLeft: isMobile ? 0 : '1.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.1rem', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px' }}>
@@ -440,6 +465,7 @@ export const Toolbar: React.FC = () => {
                     </div>
                 </div>
             </div>
+            {showPageManager && <PageManager onClose={() => setShowPageManager(false)} />}
         </div>
     );
 };
