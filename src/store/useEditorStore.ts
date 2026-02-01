@@ -109,9 +109,25 @@ export const useEditorStore = create<EditorState>((set) => ({
     moveAnnotation: (id, x, y) => {
         if (!id) return;
         set((state) => ({
-            annotations: state.annotations.map(ann =>
-                ann.id === id ? { ...ann, x, y } : ann
-            )
+            annotations: state.annotations.map(ann => {
+                if (ann.id !== id) return ann;
+
+                const dx = x - ann.x;
+                const dy = y - ann.y;
+
+                const updated = { ...ann, x, y };
+
+                if ((ann.type === 'line' || ann.type === 'arrow') && ann.endX !== undefined && ann.endY !== undefined) {
+                    updated.endX = ann.endX + dx;
+                    updated.endY = ann.endY + dy;
+                }
+
+                if (ann.type === 'draw' && ann.points) {
+                    updated.points = ann.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+                }
+
+                return updated;
+            })
         }));
     },
 

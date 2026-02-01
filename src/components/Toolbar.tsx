@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     MousePointer2,
     Type,
@@ -24,6 +24,7 @@ import type { ToolType } from '../store/useEditorStore';
 import { savePDF } from '../utils/pdfProcessing';
 import { TextFormatPanel } from './TextFormatPanel';
 import { ShapeFormatPanel } from './ShapeFormatPanel';
+import { nanoid } from 'nanoid';
 
 export const Toolbar: React.FC = () => {
     const {
@@ -44,8 +45,16 @@ export const Toolbar: React.FC = () => {
         historyIndex,
         history,
         showToast,
-        showConfirm
+        showConfirm,
+        addAndSelectAnnotation
     } = useEditorStore();
+
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const handleSave = async () => {
         if (!file) {
@@ -123,6 +132,51 @@ export const Toolbar: React.FC = () => {
         }
     };
 
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const imageContent = event.target?.result as string;
+            if (imageContent) {
+                const img = new Image();
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+                    const maxSize = 200;
+                    if (width > maxSize || height > maxSize) {
+                        const ratio = width / height;
+                        if (width > height) {
+                            width = maxSize;
+                            height = maxSize / ratio;
+                        } else {
+                            height = maxSize;
+                            width = maxSize * ratio;
+                        }
+                    }
+
+                    addAndSelectAnnotation({
+                        id: nanoid(),
+                        type: 'image',
+                        x: 100,
+                        y: 100,
+                        width: width,
+                        height: height,
+                        page: currentPage,
+                        image: imageContent
+                    });
+                    setTool('select');
+                };
+                img.src = imageContent;
+            }
+        };
+        reader.readAsDataURL(file);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
     const tools: { id: ToolType; icon: React.ReactNode; label: string }[] = [
         { id: 'select', icon: <MousePointer2 size={18} />, label: 'Select' },
         { id: 'text', icon: <Type size={18} />, label: 'Text' },
@@ -142,10 +196,10 @@ export const Toolbar: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0.5rem 1.5rem',
+            padding: isMobile ? '0.5rem 0.5rem' : '0.5rem 1.5rem',
             background: 'transparent',
             borderTop: '1px solid rgba(0,0,0,0.05)',
-            gap: '1.5rem',
+            gap: isMobile ? '0.5rem' : '1.5rem',
             flexWrap: 'wrap',
             maxWidth: '1800px',
             margin: '0 auto',
@@ -166,7 +220,13 @@ export const Toolbar: React.FC = () => {
                 {tools.map((tool) => (
                     <button
                         key={tool.id}
-                        onClick={() => setTool(tool.id)}
+                        onClick={() => {
+                            if (tool.id === 'image') {
+                                fileInputRef.current?.click();
+                            } else {
+                                setTool(tool.id);
+                            }
+                        }}
                         title={tool.label}
                         style={{
                             padding: '0.5rem',
@@ -191,6 +251,14 @@ export const Toolbar: React.FC = () => {
                         {tool.icon}
                     </button>
                 ))}
+
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                />
 
                 {/* Delete Selection */}
                 {selectedAnnotationId && (
@@ -292,7 +360,7 @@ export const Toolbar: React.FC = () => {
             </div>
 
             {/* Navigation & Action Section */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '1.5rem', flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-end' }}>
                 {/* Save Button - Premium Styling */}
                 <button
                     onClick={handleSave}
@@ -318,7 +386,7 @@ export const Toolbar: React.FC = () => {
                 </button>
 
                 {/* Zoom & Page Controls */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '1px solid #e2e8f0', paddingLeft: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: isMobile ? 'none' : '1px solid #e2e8f0', paddingLeft: isMobile ? 0 : '1.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.1rem', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px' }}>
                         <button
                             onClick={() => setScale(Math.max(0.5, scale - 0.1))}
