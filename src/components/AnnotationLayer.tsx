@@ -23,6 +23,9 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
 
     const containerRef = useRef<HTMLDivElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
+    const [isResizing, setIsResizing] = useState(false);
+    const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+    const [initialResizeState, setInitialResizeState] = useState<any>(null);
     const [startPos, setStartPos] = useState({ x: 0, y: 0 });
     const [currentRect, setCurrentRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
     const [currentShape, setCurrentShape] = useState<{ x: number, y: number, endX: number, endY: number } | null>(null);
@@ -115,8 +118,47 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
         }
     };
 
+
+
+    const handleResizeStart = (e: any, handle: string, ann: any) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const { x, y } = getRelativeCoords(e);
+        setIsResizing(true);
+        setResizeHandle(handle);
+        setInitialResizeState({
+            x: ann.x,
+            y: ann.y,
+            w: ann.width || 0,
+            h: ann.height || 0,
+            mouseX: x,
+            mouseY: y
+        });
+    };
+
     const handleMouseMove = (e: React.MouseEvent | React.TouchEvent | any) => {
         const { x, y } = getRelativeCoords(e);
+
+        if (isResizing && initialResizeState && selectedAnnotationId) {
+            const deltaX = (x - initialResizeState.mouseX) / scale;
+            const deltaY = (y - initialResizeState.mouseY) / scale;
+
+            let newX = initialResizeState.x;
+            let newY = initialResizeState.y;
+            let newW = initialResizeState.w;
+            let newH = initialResizeState.h;
+
+            if (resizeHandle?.includes('e')) newW += deltaX;
+            if (resizeHandle?.includes('w')) { newX += deltaX; newW -= deltaX; }
+            if (resizeHandle?.includes('s')) newH += deltaY;
+            if (resizeHandle?.includes('n')) { newY += deltaY; newH -= deltaY; }
+
+            if (newW < 10) newW = 10;
+            if (newH < 10) newH = 10;
+
+            updateAnnotation(selectedAnnotationId, { x: newX, y: newY, width: newW, height: newH });
+            return;
+        }
 
         // Handle dragging with Snapping
         if (isDragging && draggedAnnotationId) {
@@ -259,6 +301,9 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
     };
 
     const handleMouseUp = () => {
+        setIsResizing(false);
+        setResizeHandle(null);
+        setInitialResizeState(null);
         if (isDragging && draggedAnnotationId) {
             // Find the current position to commit to history
             const ann = annotations.find(a => a.id === draggedAnnotationId);
@@ -641,6 +686,34 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                     )}
                 </div>
             ))}
+
+            {/* Resize Handles Overlay for Images/Rects */}
+            {selectedAnnotationId && (() => {
+                const ann = annotations.find(a => a.id === selectedAnnotationId);
+                if (!ann || (ann.type !== 'image' && ann.type !== 'rect' && ann.type !== 'circle')) return null;
+
+                const handleStyle: React.CSSProperties = {
+                    width: 12, height: 12, background: 'white', border: '1px solid #3b82f6', position: 'absolute', zIndex: 10, borderRadius: '50%', boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                };
+
+                const left = ann.x * scale;
+                const top = ann.y * scale;
+                const w = (ann.width || 0) * scale;
+                const h = (ann.height || 0) * scale;
+
+                return (
+                    <div style={{ position: 'absolute', left, top, width: w, height: h, pointerEvents: 'none', border: '1px solid #3b82f6' }}>
+                        <div style={{ ...handleStyle, left: -6, top: -6, cursor: 'nw-resize', pointerEvents: 'auto' }}
+                            onMouseDown={(e) => handleResizeStart(e, 'nw', ann)} onTouchStart={(e) => handleResizeStart(e, 'nw', ann)} />
+                        <div style={{ ...handleStyle, right: -6, top: -6, cursor: 'ne-resize', pointerEvents: 'auto' }}
+                            onMouseDown={(e) => handleResizeStart(e, 'ne', ann)} onTouchStart={(e) => handleResizeStart(e, 'ne', ann)} />
+                        <div style={{ ...handleStyle, left: -6, bottom: -6, cursor: 'sw-resize', pointerEvents: 'auto' }}
+                            onMouseDown={(e) => handleResizeStart(e, 'sw', ann)} onTouchStart={(e) => handleResizeStart(e, 'sw', ann)} />
+                        <div style={{ ...handleStyle, right: -6, bottom: -6, cursor: 'se-resize', pointerEvents: 'auto' }}
+                            onMouseDown={(e) => handleResizeStart(e, 'se', ann)} onTouchStart={(e) => handleResizeStart(e, 'se', ann)} />
+                    </div>
+                );
+            })()}
 
             {/* Render Draft Image Rect */}
             {currentRect && selectedTool === 'image' && (
