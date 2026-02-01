@@ -25,7 +25,7 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
 
     // Deselect when clicking outside annotations in select mode
     React.useEffect(() => {
-        const handleGlobalMouseDown = (e: MouseEvent) => {
+        const handleGlobalMouseDown = () => {
             // If event reached here, it wasn't stopped by annotation
             if (selectedTool === 'select' && selectedAnnotationId) {
                 selectAnnotation(null);
