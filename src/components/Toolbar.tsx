@@ -17,7 +17,8 @@ import {
     Circle,
     Minus,
     ArrowRight,
-    EyeOff
+    EyeOff,
+    PencilLine,
 } from 'lucide-react';
 import { useEditorStore } from '../store/useEditorStore';
 import type { ToolType } from '../store/useEditorStore';
@@ -46,6 +47,7 @@ export const Toolbar: React.FC = () => {
         history,
         showToast,
         showConfirm,
+        addAnnotation,
         addAndSelectAnnotation
     } = useEditorStore();
 
@@ -130,6 +132,62 @@ export const Toolbar: React.FC = () => {
             console.error('Failed to save PDF', error);
             showToast(`Failed to save PDF\n\n${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
         }
+    };
+
+    const handleReplaceText = () => {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) {
+            showToast('Please select text on the PDF first', 'info');
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const pageEl = document.elementFromPoint(centerX, centerY)?.closest('.react-pdf__Page');
+
+        if (!pageEl) {
+            showToast('Could not determine page. Ensure text is selected.', 'error');
+            return;
+        }
+
+        const pageRect = pageEl.getBoundingClientRect();
+        const pageNumber = parseInt(pageEl.getAttribute('data-page-number') || '1');
+
+        const relX = (rect.left - pageRect.left) / scale;
+        const relY = (rect.top - pageRect.top) / scale;
+        const relW = rect.width / scale;
+        const relH = rect.height / scale;
+
+        addAnnotation({
+            id: nanoid(),
+            type: 'rect',
+            page: pageNumber,
+            x: relX - 2,
+            y: relY - 1,
+            width: relW + 4,
+            height: relH + 2,
+            color: 'white',
+            fillColor: 'white'
+        });
+
+        addAndSelectAnnotation({
+            id: nanoid(),
+            type: 'text',
+            page: pageNumber,
+            x: relX,
+            y: relY,
+            fontSize: relH * 0.75,
+            content: selection.toString(),
+            color: 'black',
+            width: relW,
+            height: relH
+        });
+
+        selection.removeAllRanges();
+        setTool('select');
     };
 
     const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -251,6 +309,29 @@ export const Toolbar: React.FC = () => {
                         {tool.icon}
                     </button>
                 ))}
+
+                <button
+                    onClick={handleReplaceText}
+                    title="Edit Selected Text"
+                    style={{
+                        padding: '0.5rem',
+                        borderRadius: '8px',
+                        color: 'var(--color-text-secondary)',
+                        background: 'transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '36px',
+                        height: '36px',
+                        borderLeft: '1px solid #e2e8f0',
+                        marginLeft: '0.2rem',
+                        marginRight: '0.2rem'
+                    }}
+                    onMouseOver={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = 'var(--color-primary)'; }}
+                    onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)'; }}
+                >
+                    <PencilLine size={18} />
+                </button>
 
                 <input
                     type="file"

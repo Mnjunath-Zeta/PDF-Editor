@@ -64,7 +64,7 @@ export const PDFViewer: React.FC = () => {
                     <Page
                         pageNumber={currentPage}
                         scale={scale}
-                        renderTextLayer={false} // Disable text selection for now to simplify tool interactions
+                        renderTextLayer={true}
                         renderAnnotationLayer={false} // We will implement our own annotation layer
                         canvasBackground="#ffffff"
                         onLoadSuccess={onPageLoadSuccess}
