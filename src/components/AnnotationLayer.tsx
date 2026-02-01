@@ -24,16 +24,7 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Deselect when clicking outside annotations in select mode
-    React.useEffect(() => {
-        const handleGlobalMouseDown = () => {
-            // If event reached here, it wasn't stopped by annotation
-            if (selectedTool === 'select' && selectedAnnotationId) {
-                selectAnnotation(null);
-            }
-        };
-        document.addEventListener('mousedown', handleGlobalMouseDown);
-        return () => document.removeEventListener('mousedown', handleGlobalMouseDown);
-    }, [selectedTool, selectedAnnotationId, selectAnnotation]);
+
 
     const [isDrawing, setIsDrawing] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
@@ -426,7 +417,7 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                 zIndex: 10,
                 cursor: selectedTool === 'select' ? 'default' : 'crosshair',
                 touchAction: 'none',
-                pointerEvents: selectedTool === 'select' ? 'none' : 'auto'
+                pointerEvents: 'all'
             }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -659,7 +650,7 @@ export const AnnotationLayer: React.FC<AnnotationLayerProps> = ({ pageNumber }) 
                         backgroundColor: (ann.type === 'rect' && ann.color === 'white') ? 'white' : undefined,
                         cursor: selectedTool === 'select' ? 'move' : 'default',
                         userSelect: 'none',
-                        pointerEvents: 'auto',
+                        pointerEvents: (ann.type === 'rect' && ann.color === 'white' && selectedTool !== 'select') ? 'none' : (ann.type === 'text' || (ann.type === 'rect' && ann.color === 'white')) ? 'auto' : 'none',
                         zIndex: ann.type === 'text' ? 2 : (ann.type === 'rect' && ann.color === 'white') ? 0 : 1,
                         display: (ann.type === 'text' || (ann.type === 'rect' && ann.color === 'white')) ? 'block' : 'none',
                         touchAction: 'none'
