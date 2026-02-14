@@ -17,6 +17,13 @@ const tools: { id: AppTool; name: string; description: string; icon: React.React
         description: 'Reduce file size of JPG, PNG, and PDF images without losing quality.',
         icon: <Maximize2 size={32} />,
         color: '#10b981'
+    },
+    {
+        id: 'emi-calculator',
+        name: 'EMI Calculator',
+        description: 'Calculate your monthly loan payments, interest, and total cost instantly.',
+        icon: <Zap size={32} />,
+        color: '#f59e0b'
     }
 ];
 

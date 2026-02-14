@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type AppTool = 'landing' | 'pdf-editor' | 'file-resize';
+export type AppTool = 'landing' | 'pdf-editor' | 'file-resize' | 'emi-calculator';
 
 interface AppState {
     activeTool: AppTool;

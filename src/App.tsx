@@ -5,6 +5,7 @@ import { useAppStore } from './store/useAppStore';
 import { LandingPage } from './components/LandingPage';
 import { PDFEditorTool } from './tools/PDFEditor/PDFEditorTool';
 import { FileResizeTool } from './tools/FileResize/FileResizeTool';
+import { EMICalculatorTool } from './tools/EMICalculator/EMICalculatorTool';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
@@ -74,6 +75,8 @@ function App() {
         return <PDFEditorTool />;
       case 'file-resize':
         return <FileResizeTool />;
+      case 'emi-calculator':
+        return <EMICalculatorTool />;
       default:
         return <LandingPage />;
     }
